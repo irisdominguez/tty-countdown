@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description="Fancy countdown script")
 
 parser.add_argument("-m", "--minutes", action="store",
                     type=int, help="Number of minutes",
-                    default=0)
+                    default=25)
 parser.add_argument("-s", "--seconds", action="store",
                     type=int, help="Number of seconds",
                     default=0)
