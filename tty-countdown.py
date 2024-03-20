@@ -3,6 +3,8 @@
 import subprocess
 import argparse
 import time
+import os
+
 
 # Default dimensions just in case
 DEFAULT_HEIGHT = 24
@@ -17,9 +19,11 @@ parser.add_argument("-m", "--minutes", action="store",
 parser.add_argument("-s", "--seconds", action="store",
                     type=int, help="Number of seconds",
                     default=0)
+# Default font in the same folder
+DEFAULT_FONT = os.path.dirname(os.path.realpath(__file__)) + "/font.txt"
 parser.add_argument("-f", "--font", action="store",
                     help="Custom font file",
-                    default="/usr/share/tty-countdown/font.txt")
+                    default=DEFAULT_FONT)
 parser.add_argument("-n", "--nocenter", action="store_true",
                     help="Do not center timer (more efficient)")
 
