@@ -130,7 +130,7 @@ class CountdownTimer:
             self.instructions = "space: resume, q: quit, r: reset"
 
     def reset(self):
-        self.running = False  
+        self.running = True  
         self.remaining_seconds = self.initial_seconds
         self.start_pause()
         
