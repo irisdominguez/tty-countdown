@@ -19,7 +19,12 @@ A countdown timer that will live forever in the shadow of
                             Number of seconds
       -f FONT, --font FONT  Custom font file
       -n, --nocenter        Do not center timer (more efficient)
-    
+
+    controls:
+      Spacebar: pause / resume the timer
+      q: quit the timer
+      r: reset the timer
+      
 ## Installation
 
     $ mkdir -p ~/.local/opt & mkdir -p ~/.local/bin
