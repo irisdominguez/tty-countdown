@@ -3,6 +3,11 @@
 import subprocess
 import argparse
 import time
+import threading
+import select
+import tty
+import termios
+import sys
 import os
 
 
@@ -90,15 +95,68 @@ def getTermDimensions():
         return [DEFAULT_HEIGHT, DEFAULT_WIDTH]
 
 
-if __name__ == '__main__':
-    # Load font file
-    with open(fontFile, "r") as f:
-        font = f.read().split("\n<---->\n")
-        font = [symbol.split("\n") for symbol in font]
+class CountdownTimer:
+    def __init__(self, initial_seconds):
+        self.initial_seconds = initial_seconds
+        self.remaining_seconds = initial_seconds
+        self.running = False
+        self.thread = None
 
-    # Countdown
-    while seconds >= 0:
-        t = "%s:%02d" % divmod(seconds, 60)
-        print(center(asciiFormat(t, font), getTermDimensions()), end="")
-        seconds -= 1
-        time.sleep(1)
+    def start_pause(self):
+        self.running = not self.running
+        if self.running:
+            self.thread = threading.Thread(target=self.countdown)
+            self.thread.start()
+
+    def countdown(self):
+        while self.remaining_seconds > 0 and self.running:
+            # print("\033c")
+            # minutes = self.remaining_seconds // 60
+            # seconds = self.remaining_seconds % 60
+            # print(f"{minutes:02}:{seconds:02}")
+
+            t = "%02s:%02d" % divmod(self.remaining_seconds, 60)
+            print(center(asciiFormat(t, font), getTermDimensions()), end="")
+            
+            self.remaining_seconds -= 1
+            time.sleep(1)
+        if self.remaining_seconds > 0 and not self.running:
+            print("Countdown paused!")
+        else:
+            print("Countdown finished!")
+
+    def reset(self):
+        self.running = False  
+        self.remaining_seconds = self.initial_seconds
+        
+    def end(self):
+        self.running = False  
+        self.remaining_seconds = 0
+
+# Example usage
+timer = CountdownTimer(seconds)  # Create a 25-minute timer
+with open(fontFile, "r") as f:
+    font = f.read().split("\n<---->\n")
+    font = [symbol.split("\n") for symbol in font]
+old_settings = termios.tcgetattr(sys.stdin)  # Store original terminal settings
+
+try:
+    tty.setcbreak(sys.stdin.fileno())  # Put terminal in cbreak mode
+    timer.start_pause()
+
+    while True:
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            key = sys.stdin.read(1)
+            if key == ' ': 
+                timer.start_pause()
+            elif key == 'r': 
+                timer.reset()
+                print("Timer reset!")
+            elif key == 'q': 
+                timer.end()
+                print("Timer aborted!")
+                break
+
+finally:
+    timer.end()
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)  # Restore settings
