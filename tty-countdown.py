@@ -69,6 +69,11 @@ def center(frame, termDimensions):
         frame = frame.split("\n")
         frameWidth = max(map(len, frame))
         frameHeight = len(frame)
+
+        # If it doesn't fit, return None
+        if (termWidth < frameWidth) or (termHeight < (frameHeight + 3)):
+            return None
+        
         # pad horizontally
         pad = " " * int((termWidth - frameWidth) / 2)
         frame = "\n".join([(pad + line + pad) for line in frame])
@@ -76,7 +81,6 @@ def center(frame, termDimensions):
         # pad vertically
         pad = "\n" * int((termHeight - frameHeight) / 2)
         frame = pad + frame + pad
-    clear()
     return frame
 
 
@@ -94,6 +98,16 @@ def getTermDimensions():
     except subprocess.CalledProcessError:
         return [DEFAULT_HEIGHT, DEFAULT_WIDTH]
 
+def printTime(seconds, status, instructions):
+    clear()
+    t = "%02d:%02d" % divmod(max(seconds, 0), 60)
+    frame = center(asciiFormat(t, font), getTermDimensions())
+    if frame is None:
+        print(t)
+    else:
+        print(frame, end="")
+        print(status)
+        print(instructions)
 
 class CountdownTimer:
     def __init__(self, initial_seconds):
@@ -101,40 +115,51 @@ class CountdownTimer:
         self.remaining_seconds = initial_seconds
         self.running = False
         self.thread = None
+        self.status = "Initialize..."
+        self.instructions = "space: start, q: quit, r: reset"
 
     def start_pause(self):
         self.running = not self.running
         if self.running:
             self.thread = threading.Thread(target=self.countdown)
             self.thread.start()
-
-    def countdown(self):
-        while self.remaining_seconds > 0 and self.running:
-            # print("\033c")
-            # minutes = self.remaining_seconds // 60
-            # seconds = self.remaining_seconds % 60
-            # print(f"{minutes:02}:{seconds:02}")
-
-            t = "%02s:%02d" % divmod(self.remaining_seconds, 60)
-            print(center(asciiFormat(t, font), getTermDimensions()), end="")
-            
-            self.remaining_seconds -= 1
-            time.sleep(1)
-        if self.remaining_seconds > 0 and not self.running:
-            print("Countdown paused!")
+            self.status = "Working..."
+            self.instructions = "space: pause, q: quit, r: reset"
         else:
-            print("Countdown finished!")
+            self.status = "Paused..."
+            self.instructions = "space: resume, q: quit, r: reset"
 
     def reset(self):
         self.running = False  
         self.remaining_seconds = self.initial_seconds
+        self.start_pause()
         
     def end(self):
-        self.running = False  
-        self.remaining_seconds = 0
+        self.running = False
+        self.status = "Aborted!"
+        self.instructions = "Bye!"
 
-# Example usage
-timer = CountdownTimer(seconds)  # Create a 25-minute timer
+    def countdown(self):
+        while self.remaining_seconds >= 0 and self.running:
+            if self.remaining_seconds == 0:
+                self.status = "Finished!"
+                self.instructions = "q: quit, r: reset"
+            printTime(self.remaining_seconds,
+                      self.status,
+                      self.instructions)
+            self.remaining_seconds -= 1
+            time.sleep(1)
+        else:
+            if self.remaining_seconds <= 0:
+                self.status = "Finished!"
+                self.instructions = "q: quit, r: reset"
+            printTime(self.remaining_seconds,
+                      self.status,
+                      self.instructions)
+
+# Create the timer
+timer = CountdownTimer(seconds)
+# Load the font
 with open(fontFile, "r") as f:
     font = f.read().split("\n<---->\n")
     font = [symbol.split("\n") for symbol in font]
@@ -142,7 +167,7 @@ old_settings = termios.tcgetattr(sys.stdin)  # Store original terminal settings
 
 try:
     tty.setcbreak(sys.stdin.fileno())  # Put terminal in cbreak mode
-    timer.start_pause()
+    timer.start_pause() # start timer
 
     while True:
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
@@ -151,10 +176,8 @@ try:
                 timer.start_pause()
             elif key == 'r': 
                 timer.reset()
-                print("Timer reset!")
             elif key == 'q': 
                 timer.end()
-                print("Timer aborted!")
                 break
 
 finally:
