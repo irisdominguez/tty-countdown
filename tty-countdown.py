@@ -10,6 +10,13 @@ import termios
 import sys
 import os
 
+try:
+    import plyer
+    sysNotify = True
+except:
+    print("Plyer not installed. System notifications not available")
+    sysNotify = False
+
 
 # Default dimensions just in case
 DEFAULT_HEIGHT = 24
@@ -20,7 +27,7 @@ parser = argparse.ArgumentParser(description="Fancy countdown script")
 
 parser.add_argument("-m", "--minutes", action="store",
                     type=int, help="Number of minutes",
-                    default=25)
+                    default=0)
 parser.add_argument("-s", "--seconds", action="store",
                     type=int, help="Number of seconds",
                     default=0)
@@ -32,14 +39,22 @@ parser.add_argument("-f", "--font", action="store",
 parser.add_argument("-n", "--nocenter", action="store_true",
                     help="Do not center timer (more efficient)")
 
+parser.add_argument("-d", "--disable-notification", action="store_true",
+                    help="Do not emit a system notification when finished")
+
 args = parser.parse_args()
 
 centered = not args.nocenter
 seconds = args.seconds
 minutes = args.minutes
 fontFile = args.font
+if sysNotify:
+    sysNotify = not args.disable_notification
 
 seconds = minutes * 60 + seconds
+# Default time to pomodoro (25 mins)
+if seconds == 0:
+    seconds = 25 * 60
 
 
 # Turn string into blocky ascii representation
@@ -118,11 +133,16 @@ class CountdownTimer:
         self.status = "Initialize..."
         self.instructions = "space: start, q: quit, r: reset"
 
+    def start_thread(self):
+        if self.thread:
+            return
+        self.thread = threading.Thread(target=self.countdown)
+        self.thread.start()        
+
     def start_pause(self):
         self.running = not self.running
         if self.running:
-            self.thread = threading.Thread(target=self.countdown)
-            self.thread.start()
+            self.start_thread()
             self.status = "Working..."
             self.instructions = "space: pause, q: quit, r: reset"
         else:
@@ -130,32 +150,46 @@ class CountdownTimer:
             self.instructions = "space: resume, q: quit, r: reset"
 
     def reset(self):
-        self.running = True  
-        self.remaining_seconds = self.initial_seconds
-        self.start_pause()
+        if self.running:
+            self.remaining_seconds = self.initial_seconds
+        else:
+            print("We are stopped, trying to reset")
+            self.running = False
+            self.remaining_seconds = self.initial_seconds
+            self.start_pause()
         
     def end(self):
         self.running = False
         self.status = "Aborted!"
         self.instructions = "Bye!"
 
+    def notify(self):
+        if sysNotify:
+            plyer.notification.notify(
+                title = "Timer finished",
+                message = f"Your timer has finished",
+                app_icon = '',
+                timeout = 5,
+            )
+
+    def print(self):
+        printTime(self.remaining_seconds,
+                      self.status,
+                      self.instructions)
+
     def countdown(self):
         while self.remaining_seconds >= 0 and self.running:
             if self.remaining_seconds == 0:
+                self.running = False
                 self.status = "Finished!"
                 self.instructions = "q: quit, r: reset"
-            printTime(self.remaining_seconds,
-                      self.status,
-                      self.instructions)
+                self.notify()
+            self.print()
             self.remaining_seconds -= 1
             time.sleep(1)
         else:
-            if self.remaining_seconds <= 0:
-                self.status = "Finished!"
-                self.instructions = "q: quit, r: reset"
-            printTime(self.remaining_seconds,
-                      self.status,
-                      self.instructions)
+            self.print()
+            self.thread = None
 
 # Create the timer
 timer = CountdownTimer(seconds)
