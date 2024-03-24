@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 import subprocess
 import argparse
@@ -96,6 +96,8 @@ def center(frame, termDimensions):
         # pad vertically
         pad = "\n" * int((termHeight - frameHeight) / 2)
         frame = pad + frame + pad
+    else:
+        frame += "\n\n"
     return frame
 
 
@@ -127,7 +129,8 @@ def printTime(seconds, status, instructions):
 class CountdownTimer:
     def __init__(self, initial_seconds):
         self.initial_seconds = initial_seconds
-        self.remaining_seconds = initial_seconds
+        self.updatetime = 0.2
+        self.remaining_seconds = initial_seconds + 1 - self.updatetime
         self.running = False
         self.thread = None
         self.status = "Initialize..."
@@ -148,16 +151,15 @@ class CountdownTimer:
         else:
             self.status = "Paused..."
             self.instructions = "space: resume, q: quit, r: reset"
-        self.print()
+            self.print()
 
     def reset(self):
+        self.remaining_seconds = self.initial_seconds + 1 - self.updatetime
         if self.running:
-            self.remaining_seconds = self.initial_seconds
             self.print()
         else:
             print("We are stopped, trying to reset")
             self.running = False
-            self.remaining_seconds = self.initial_seconds
             self.start_pause()
         
     def end(self):
@@ -176,20 +178,20 @@ class CountdownTimer:
             )
 
     def print(self):
-        printTime(self.remaining_seconds,
+        printTime(int(self.remaining_seconds),
                       self.status,
                       self.instructions)
 
     def countdown(self):
         while self.remaining_seconds >= 0 and self.running:
-            if self.remaining_seconds == 0:
+            self.print()
+            time.sleep(self.updatetime)
+            self.remaining_seconds -= self.updatetime
+            if self.remaining_seconds <= 0:
                 self.running = False
                 self.status = "Finished!"
                 self.instructions = "q: quit, r: reset"
                 self.notify()
-            self.print()
-            time.sleep(1)
-            self.remaining_seconds -= 1
         else:
             self.print()
             self.thread = None
