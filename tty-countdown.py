@@ -148,10 +148,12 @@ class CountdownTimer:
         else:
             self.status = "Paused..."
             self.instructions = "space: resume, q: quit, r: reset"
+        self.print()
 
     def reset(self):
         if self.running:
             self.remaining_seconds = self.initial_seconds
+            self.print()
         else:
             print("We are stopped, trying to reset")
             self.running = False
@@ -162,6 +164,7 @@ class CountdownTimer:
         self.running = False
         self.status = "Aborted!"
         self.instructions = "Bye!"
+        self.print()
 
     def notify(self):
         if sysNotify:
@@ -185,8 +188,8 @@ class CountdownTimer:
                 self.instructions = "q: quit, r: reset"
                 self.notify()
             self.print()
-            self.remaining_seconds -= 1
             time.sleep(1)
+            self.remaining_seconds -= 1
         else:
             self.print()
             self.thread = None
